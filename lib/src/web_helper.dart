@@ -64,7 +64,7 @@ class WebHelper {
     var success = false;
 
     var response = await _fileFetcher(url, headers: headers);
-    success = await _handleHttpResponse(response, cacheObject);
+    success = await _handleHttpResponse(response, cacheObject, headers);
 
     if (!success) {
       throw HttpException("No valid statuscode. Statuscode was ${response?.statusCode}");
@@ -81,10 +81,11 @@ class WebHelper {
     return new HttpFileFetcherResponse(httpResponse);
   }
 
-  Future<bool> _handleHttpResponse(FileFetcherResponse response, CacheObject cacheObject) async {
+  Future<bool> _handleHttpResponse(
+      FileFetcherResponse response, CacheObject cacheObject, Map<String, String> headers) async {
     if (response.statusCode == 200 || response.statusCode == 201) {
       var basePath = await _store.filePath;
-      _setDataFromHeaders(cacheObject, response);
+      _setDataFromHeaders(cacheObject, response, headers);
       var path = p.join(basePath, cacheObject.relativePath);
 
       var folder = new File(path).parent;
@@ -95,13 +96,13 @@ class WebHelper {
       return true;
     }
     if (response.statusCode == 304) {
-      await _setDataFromHeaders(cacheObject, response);
+      await _setDataFromHeaders(cacheObject, response, headers);
       return true;
     }
     return false;
   }
 
-  _setDataFromHeaders(CacheObject cacheObject, FileFetcherResponse response) async {
+  _setDataFromHeaders(CacheObject cacheObject, FileFetcherResponse response, Map<String, String> headers) async {
     //Without a cache-control header we keep the file for a week
     var ageDuration = new Duration(days: 7);
 
@@ -124,24 +125,27 @@ class WebHelper {
       cacheObject.eTag = response.header("etag");
     }
 
-//    var fileExtension = "";
-//    if (response.hasHeader("content-type")) {
-//      var type = response.header("content-type").split("/");
-//      if (type.length == 2) {
-//        fileExtension = ".${type[1]}";
-//      }
-//    }
-
     var fileName = '';
-    if (response.hasHeader('file-name')) {
-      fileName = '.${response.header('file-name')}';
+    var fileType = '';
+
+    if (headers != null && headers.isNotEmpty) {
+      if (headers.containsKey('file-name')) {
+        String fileName = response.header('file-name');
+        fileName = Uri.decodeComponent(fileName) ?? 'file';
+      } else {
+        fileName = new Uuid().v1();
+      }
+      if (response.hasHeader('file-type')) {
+        fileType = '.${response.header('file-type')}';
+      }
     } else {
       fileName = new Uuid().v1();
-    }
-
-    var fileType = '';
-    if (response.hasHeader('file-type')) {
-      fileType = '.${response.header('file-type')}';
+      if (response.hasHeader("content-type")) {
+        var type = response.header("content-type").split("/");
+        if (type.length == 2) {
+          fileType = ".${type[1]}";
+        }
+      }
     }
 
     var oldPath = cacheObject.relativePath;
