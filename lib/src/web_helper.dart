@@ -130,13 +130,13 @@ class WebHelper {
 
     if (headers != null && headers.isNotEmpty) {
       if (headers.containsKey('file-name')) {
-        String fileName = response.header('file-name');
+        String fileName = headers['file-name'];
         fileName = Uri.decodeComponent(fileName) ?? 'file';
       } else {
         fileName = new Uuid().v1();
       }
-      if (response.hasHeader('file-type')) {
-        fileType = '.${response.header('file-type')}';
+      if (headers.containsKey('file-type')) {
+        fileType = '.${headers['file-type']}';
       }
     } else {
       fileName = new Uuid().v1();
